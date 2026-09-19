@@ -41,7 +41,7 @@
                     type="text"
                     autofocus
                     spellcheck="false"
-                    @keyup.esc="hideInput"
+                    @keyup.esc="hideInput(true)"
                     @keyup="keyUp"
                     @keydown="keyDown"
                     @keypress.enter.prevent="send">
