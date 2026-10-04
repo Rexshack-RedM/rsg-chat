@@ -10,6 +10,5 @@
   "param_message": "wiadomość",
   "param_message_help": "Wiadomość do wysłania",
   "help_ooc": "Wyślij wiadomość poza postacią",
-  "help_clearchat": "Wyczyść okno czatu",
-  "help_say": "Wyślij wiadomość bez oznaczenia"
+  "help_clearchat": "Wyczyść okno czatu"
 }

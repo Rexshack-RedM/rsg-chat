@@ -10,6 +10,5 @@
   "param_message": "mesaj",
   "param_message_help": "Mesajul de trimis",
   "help_ooc": "Trimite un mesaj în afara personajului",
-  "help_clearchat": "Golește fereastra de chat",
-  "help_say": "Trimite un mesaj fără etichetă"
+  "help_clearchat": "Golește fereastra de chat"
 }

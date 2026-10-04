@@ -10,6 +10,5 @@
   "param_message": "bericht",
   "param_message_help": "Het te versturen bericht",
   "help_ooc": "Stuur een out-of-character bericht",
-  "help_clearchat": "Je chatvenster leegmaken",
-  "help_say": "Stuur een bericht zonder tag"
+  "help_clearchat": "Je chatvenster leegmaken"
 }

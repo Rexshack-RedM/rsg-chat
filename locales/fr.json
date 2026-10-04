@@ -10,6 +10,5 @@
   "param_message": "message",
   "param_message_help": "Le message à envoyer",
   "help_ooc": "Envoyer un message hors RP",
-  "help_clearchat": "Effacer votre fenêtre de chat",
-  "help_say": "Envoyer un message sans étiquette"
+  "help_clearchat": "Effacer votre fenêtre de chat"
 }

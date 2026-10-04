@@ -10,6 +10,5 @@
   "param_message": "mensaje",
   "param_message_help": "El mensaje a enviar",
   "help_ooc": "Enviar un mensaje fuera de personaje",
-  "help_clearchat": "Limpiar tu ventana de chat",
-  "help_say": "Enviar un mensaje sin etiqueta"
+  "help_clearchat": "Limpiar tu ventana de chat"
 }

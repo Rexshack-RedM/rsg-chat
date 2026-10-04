@@ -93,10 +93,3 @@ RegisterCommand('ooc', function(source, _, rawCommand)
     if message then BroadcastOOC(source, message) end
 end, false)
 
--- Restricted (ace: command.say) so players can't post untagged messages
-RegisterCommand('say', function(source, _, rawCommand)
-    local message = rawCommand:sub(5):match('^%s*(.-)%s*$')
-    if message == '' then return end
-    local name = source == 0 and locale('console_name') or GetCharacterName(source)
-    TriggerClientEvent('chatMessage', -1, name, { 255, 255, 255 }, message:sub(1, Config.MaxMessageLength))
-end, true)

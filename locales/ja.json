@@ -10,6 +10,5 @@
   "param_message": "メッセージ",
   "param_message_help": "送信するメッセージ",
   "help_ooc": "キャラクター外のメッセージを送信",
-  "help_clearchat": "チャットウィンドウをクリア",
-  "help_say": "タグなしでメッセージを送信"
+  "help_clearchat": "チャットウィンドウをクリア"
 }

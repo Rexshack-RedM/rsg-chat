@@ -136,9 +136,6 @@ local function refreshCommands()
     { name = '/ooc', help = locale('help_ooc'), params = messageParam },
     { name = '/clearchat', help = locale('help_clearchat') },
   }
-  if IsAceAllowed('command.say') then
-    own[#own + 1] = { name = '/say', help = locale('help_say'), params = messageParam }
-  end
   TriggerEvent('chat:addSuggestions', own)
 end
 

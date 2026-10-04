@@ -10,6 +10,5 @@
   "param_message": "nachricht",
   "param_message_help": "Die zu sendende Nachricht",
   "help_ooc": "Eine Out-of-Character-Nachricht senden",
-  "help_clearchat": "Deinen Chat leeren",
-  "help_say": "Eine Nachricht ohne Tag senden"
+  "help_clearchat": "Deinen Chat leeren"
 }
