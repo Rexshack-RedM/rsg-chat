@@ -92,8 +92,9 @@ window.APP = {
         suggestion.params = []; //TODO Move somewhere else
       }
 
-      if (this.removedSuggestions.find(a => a.name == suggestion.name)) {
-        this.removedSuggestions.splice(this.removedSuggestions.indexOf(suggestion.name), 1)
+      const removedIndex = this.removedSuggestions.indexOf(suggestion.name);
+      if (removedIndex > -1) {
+        this.removedSuggestions.splice(removedIndex, 1);
       }
       this.backingSuggestions.push(suggestion);
     },
@@ -103,7 +104,6 @@ window.APP = {
       }
     },
     ON_COMMANDS_RESET() {
-      console.log('Resetting Command Suggestions');
       this.removedSuggestions = [];
       this.backingSuggestions = [];
     },
@@ -209,6 +209,17 @@ window.APP = {
           this.showWindow = false;
         }
       }, CONFIG.fadeTimeout);
+    },
+    fillSuggestion(text) {
+      this.message = text;
+      this.$nextTick(() => {
+        const input = this.$refs.input;
+        if (input) {
+          input.focus();
+          input.setSelectionRange(text.length, text.length);
+          this.resize && this.resize();
+        }
+      });
     },
     keyUp() {
       this.resize();

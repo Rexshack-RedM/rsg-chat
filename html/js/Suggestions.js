@@ -40,5 +40,9 @@ Vue.component('suggestions', {
       return currentSuggestions;
     },
   },
-  methods: {},
+  methods: {
+    pick(s) {
+      this.$emit('pick', `${s.name} `);
+    },
+  },
 });

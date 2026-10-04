@@ -1,6 +1,4 @@
-local RSGCore = exports['rsg-core']:GetCoreObject()
-
-local isRDR = not TerraingridActivate and true or false
+lib.locale()
 
 local chatInputActive = false
 local chatInputActivating = false
@@ -17,9 +15,6 @@ RegisterNetEvent('chat:clear')
 
 -- internal events
 RegisterNetEvent('__cfx_internal:serverPrint')
-
-RegisterNetEvent('_chat:messageEntered')
-
 
 --deprecated, use chat:addMessage
 AddEventHandler('chatMessage', function(author, color, text)
@@ -94,7 +89,7 @@ AddEventHandler('chat:addTemplate', function(id, html)
   })
 end)
 
-AddEventHandler('chat:clear', function(name)
+AddEventHandler('chat:clear', function()
   SendNUIMessage({
     type = 'ON_CLEAR'
   })
@@ -104,22 +99,13 @@ RegisterNUICallback('chatResult', function(data, cb)
   chatInputActive = false
   SetNuiFocus(false)
 
-  if not data.canceled then
-    local id = PlayerId()
-
-    --deprecated
-    local r, g, b = 0, 0x99, 255
-
-    if data.message:sub(1, 1) == '/' then
-      ExecuteCommand(data.message:sub(2))
+  local message = type(data.message) == 'string' and data.message or ''
+  if not data.canceled and message ~= '' then
+    if message:sub(1, 1) == '/' then
+      ExecuteCommand(message:sub(2))
     else
-      -- use the in-character first + last name, falling back to account name
-      local author = GetPlayerName(id)
-      local playerData = RSGCore.Functions.GetPlayerData()
-      if playerData and playerData.charinfo and playerData.charinfo.firstname and playerData.charinfo.lastname then
-        author = (playerData.charinfo.firstname .. ' ' .. playerData.charinfo.lastname):gsub('^%s*(.-)%s*$', '%1')
-      end
-      TriggerServerEvent('_chat:messageEntered', author, { r, g, b }, data.message)
+      -- author is resolved server-side
+      TriggerServerEvent('_chat:messageEntered', nil, nil, message)
     end
   end
 
@@ -143,6 +129,17 @@ local function refreshCommands()
 
     TriggerEvent('chat:addSuggestions', suggestions)
   end
+
+  -- localized help for this resource's own commands
+  local messageParam = { { name = locale('param_message'), help = locale('param_message_help') } }
+  local own = {
+    { name = '/ooc', help = locale('help_ooc'), params = messageParam },
+    { name = '/clearchat', help = locale('help_clearchat') },
+  }
+  if IsAceAllowed('command.say') then
+    own[#own + 1] = { name = '/say', help = locale('help_say'), params = messageParam }
+  end
+  TriggerEvent('chat:addSuggestions', own)
 end
 
 local function refreshThemes()
@@ -172,14 +169,14 @@ local function refreshThemes()
   })
 end
 
-AddEventHandler('onClientResourceStart', function(resName)
+AddEventHandler('onClientResourceStart', function()
   Wait(500)
 
   refreshCommands()
   refreshThemes()
 end)
 
-AddEventHandler('onClientResourceStop', function(resName)
+AddEventHandler('onClientResourceStop', function()
   Wait(500)
 
   refreshCommands()
@@ -187,8 +184,6 @@ AddEventHandler('onClientResourceStop', function(resName)
 end)
 
 RegisterNUICallback('loaded', function(data, cb)
-  TriggerServerEvent('chat:init');
-
   refreshCommands()
   refreshThemes()
 
@@ -197,7 +192,7 @@ RegisterNUICallback('loaded', function(data, cb)
   cb('ok')
 end)
 
-Citizen.CreateThread(function()
+CreateThread(function()
   SetTextChatEnabled(false)
   SetNuiFocus(false)
 
@@ -205,7 +200,7 @@ Citizen.CreateThread(function()
     Wait(0)
 
     if not chatInputActive then
-      if IsControlPressed(0, isRDR and `INPUT_MP_TEXT_CHAT_ALL` or 245) --[[ INPUT_MP_TEXT_CHAT_ALL ]] then
+      if IsControlPressed(0, `INPUT_MP_TEXT_CHAT_ALL`) then
         chatInputActive = true
         chatInputActivating = true
 
@@ -216,7 +211,7 @@ Citizen.CreateThread(function()
     end
 
     if chatInputActivating then
-      if not IsControlPressed(0, isRDR and `INPUT_MP_TEXT_CHAT_ALL` or 245) then
+      if not IsControlPressed(0, `INPUT_MP_TEXT_CHAT_ALL`) then
         SetNuiFocus(true, true)
 
         chatInputActivating = false
@@ -224,13 +219,9 @@ Citizen.CreateThread(function()
     end
 
     if chatLoaded then
-      local shouldBeHidden = false
+      local shouldBeHidden = IsScreenFadedOut() or IsPauseMenuActive()
 
-      if IsScreenFadedOut() or IsPauseMenuActive() then
-        shouldBeHidden = true
-      end
-
-      if (shouldBeHidden and not chatHidden) or (not shouldBeHidden and chatHidden) then
+      if shouldBeHidden ~= chatHidden then
         chatHidden = shouldBeHidden
 
         SendNUIMessage({
