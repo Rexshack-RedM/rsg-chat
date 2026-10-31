@@ -1,9 +1,8 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
-lib.locale()
 
 local Channels, Order = {}, {}      -- id -> channel, ordered ids
 local registeredCommands = {}       -- command names already registered this session
-local lastMessage, lastSync = {}, {}
+local lastMessage, lastSync, lastAdmin = {}, {}, {}
 
 local RANGES = { global = true, ['local'] = true, regional = true, group = true }
 local PERMS = {}
@@ -13,7 +12,7 @@ for _, p in ipairs(Config.PermissionLevels) do PERMS[p] = true end
 -- Helpers
 ---------------------------------------------------------------------
 local function notify(src, key, ntype, ...)
-    TriggerClientEvent('ox_lib:notify', src, {
+    TriggerClientEvent('RSGCore:Client:Notify', src, {
         title = locale('chat_title'),
         description = locale(key, ...),
         type = ntype or 'error',
@@ -168,29 +167,34 @@ local function GetRecipients(src, ch)
     return list
 end
 
-local function ValidateMessage(src, message, maxLength)
-    if type(message) ~= 'string' then return end
-    message = message:match('^%s*(.-)%s*$')
-    if message == '' then return end
-
+-- Per-player rate limit, checked before anything else so bad requests are throttled too
+local function OnCooldown(src)
     local now = GetGameTimer()
     if lastMessage[src] and now - lastMessage[src] < Config.MessageCooldown then
         notify(src, 'slow_down')
-        return
+        return true
     end
     lastMessage[src] = now
+    return false
+end
 
+local function CleanMessage(message, maxLength)
+    if type(message) ~= 'string' then return end
+    message = message:gsub('%c', ' '):match('^%s*(.-)%s*$')
+    if message == '' then return end
     return message:sub(1, math.min(maxLength or Config.HardMaxLength, Config.HardMaxLength))
 end
 
 local function SendToChannel(src, channelId, message)
+    if not RSGCore.Functions.GetPlayer(src) then return end
+    if OnCooldown(src) then return end
     local ch = Channels[channelId]
     if not CanUse(src, ch) then
         notify(src, 'channel_unavailable')
         SyncPlayer(src)
         return
     end
-    message = ValidateMessage(src, message, ch.maxLength)
+    message = CleanMessage(message, ch.maxLength)
     if not message then return end
 
     local name = GetCharacterName(src)
@@ -326,17 +330,19 @@ RegisterNetEvent('chat:server:ServerPSA', function(message)
         notify(src, 'no_permission')
         return
     end
-    if type(message) ~= 'string' or message == '' then return end
+    message = CleanMessage(message)
+    if not message then return end
 
     TriggerClientEvent('chat:addMessage', -1, {
         template = '<div class="chat-message server">{1}: {0}</div>',
-        args = { message:sub(1, Config.HardMaxLength), locale('server_prefix') },
+        args = { message, locale('server_prefix') },
     })
 end)
 
 AddEventHandler('playerDropped', function()
     lastMessage[source] = nil
     lastSync[source] = nil
+    lastAdmin[source] = nil
 end)
 
 ---------------------------------------------------------------------
@@ -361,12 +367,11 @@ local function adminResult(ok, err)
     return { ok = ok, err = err and locale(err) or nil, channels = AdminList() }
 end
 
-lib.callback.register('rsg-chat:server:adminGetChannels', function(src)
-    if not isAdmin(src) then return nil end
-    return AdminList()
+RSGCore.Functions.CreateCallback('rsg-chat:server:adminGetChannels', function(src, cb)
+    cb(isAdmin(src) and AdminList() or false)
 end)
 
-lib.callback.register('rsg-chat:server:adminSave', function(src, data, originalId)
+local function adminSave(src, data, originalId)
     if not isAdmin(src) then return adminResult(false, 'no_permission') end
     local ch, err = SanitizeChannel(data)
     if not ch then return adminResult(false, err) end
@@ -399,9 +404,9 @@ lib.callback.register('rsg-chat:server:adminSave', function(src, data, originalI
     TriggerEvent('rsg-log:server:CreateLog', 'chat', 'Chat channel saved', 'white',
         ('%s saved channel "%s"'):format(GetPlayerName(src) or src, ch.id))
     return adminResult(true)
-end)
+end
 
-lib.callback.register('rsg-chat:server:adminDelete', function(src, id)
+local function adminDelete(src, id)
     if not isAdmin(src) then return adminResult(false, 'no_permission') end
     if type(id) ~= 'string' or not Channels[id] then return adminResult(false, 'admin_invalid') end
 
@@ -413,9 +418,9 @@ lib.callback.register('rsg-chat:server:adminDelete', function(src, id)
     TriggerEvent('rsg-log:server:CreateLog', 'chat', 'Chat channel deleted', 'red',
         ('%s deleted channel "%s"'):format(GetPlayerName(src) or src, id))
     return adminResult(true)
-end)
+end
 
-lib.callback.register('rsg-chat:server:adminToggle', function(src, id)
+local function adminToggle(src, id)
     if not isAdmin(src) then return adminResult(false, 'no_permission') end
     local ch = type(id) == 'string' and Channels[id]
     if not ch then return adminResult(false, 'admin_invalid') end
@@ -423,10 +428,12 @@ lib.callback.register('rsg-chat:server:adminToggle', function(src, id)
     ch.enabled = not ch.enabled
     MySQL.update.await('UPDATE rsg_chat_channels SET data = ? WHERE id = ?', { json.encode(ch), ch.id })
     SyncAll()
+    TriggerEvent('rsg-log:server:CreateLog', 'chat', 'Chat channel toggled', 'white',
+        ('%s %s channel "%s"'):format(GetPlayerName(src) or src, ch.enabled and 'enabled' or 'disabled', ch.id))
     return adminResult(true)
-end)
+end
 
-lib.callback.register('rsg-chat:server:adminMove', function(src, id, dir)
+local function adminMove(src, id, dir)
     if not isAdmin(src) then return adminResult(false, 'no_permission') end
     if type(id) ~= 'string' or (dir ~= -1 and dir ~= 1) then return adminResult(false, 'admin_invalid') end
 
@@ -442,7 +449,17 @@ lib.callback.register('rsg-chat:server:adminMove', function(src, id, dir)
         end
     end
     return adminResult(true)
-end)
+end
+
+-- Admin actions are rate limited per player (they hit the database)
+for name, fn in pairs({ adminSave = adminSave, adminDelete = adminDelete, adminToggle = adminToggle, adminMove = adminMove }) do
+    RSGCore.Functions.CreateCallback('rsg-chat:server:' .. name, function(src, cb, ...)
+        local now = GetGameTimer()
+        if lastAdmin[src] and now - lastAdmin[src] < 250 then return cb(adminResult(false, 'slow_down')) end
+        lastAdmin[src] = now
+        cb(fn(src, ...))
+    end)
+end
 
 ---------------------------------------------------------------------
 -- Exports for other resources
@@ -450,11 +467,12 @@ end)
 -- exports['rsg-chat']:SendChannelMessage('staff', 'Server', 'Restart in 5 minutes')
 exports('SendChannelMessage', function(channelId, author, text)
     local ch = Channels[channelId]
-    if not ch or type(text) ~= 'string' then return false end
+    text = CleanMessage(text)
+    if not ch or not text then return false end
     local payload = {
         channel = ch.id, color = ch.color,
         prefix = ch.showPrefix and ch.prefix ~= '' and ch.prefix or nil,
-        author = tostring(author or locale('console_name')), text = text:sub(1, Config.HardMaxLength),
+        author = tostring(author or locale('console_name')):sub(1, 64), text = text,
     }
     for _, sid in ipairs(GetPlayers()) do
         local t = tonumber(sid)

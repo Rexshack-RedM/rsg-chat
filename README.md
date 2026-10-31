@@ -36,18 +36,17 @@ A chat resource for **RedM** servers running **RSG-Core**. It replaces the defau
 - **Character names:** messages show the sender's character first and last name, falling back to their account name.
 - **Server-side checks:** the server works out the sender, checks channel access and range, trims messages, caps their length and rate-limits them, so clients can't fake an author, post in channels they can't use, or spam.
 - **Server announcements (PSA):** a server-wide announcement event that other server scripts can trigger, and admins can trigger from a client.
-- **Unknown commands:** mistyped commands show an ox_lib notification instead of failing silently.
+- **Unknown commands:** mistyped commands show an RSG-Core notification instead of failing silently.
 - **Command suggestions:** shows suggestions for every command the player has permission to use, including each channel's command.
 - **Message history recall:** the Up and Down arrow keys bring back messages you sent earlier.
 - **Hides automatically** while the screen is faded out or the pause menu is open.
-- **Translations:** locale files for en, de, el, es, fr, ja, nl, pl, pt-br and ro, via ox_lib.
+- **Translations:** full locale files for en, de, el, es, fr, ja, nl, pl, pt-br and ro, loaded by rsg-core (no ox_lib needed).
 - **Themes:** supports `chat_theme` from other resources, plus customisable message templates.
-- **Logging:** channel changes made in the admin panel are logged through `rsg-log`.
+- **Logging:** channel saves, deletes and enable/disable changes made in the admin panel are logged through `rsg-log`.
 
 ## Requirements
 
 - [rsg-core](https://github.com/Rexshack-RedM/rsg-core)
-- [ox_lib](https://github.com/overextended/ox_lib)
 - [oxmysql](https://github.com/overextended/oxmysql)
 
 ## Installation
@@ -57,7 +56,6 @@ A chat resource for **RedM** servers running **RSG-Core**. It replaces the defau
 3. Make sure it starts **after** its dependencies in `server.cfg`:
    ```cfg
    ensure oxmysql
-   ensure ox_lib
    ensure rsg-core
    ensure rsg-chat
    ```
@@ -123,11 +121,11 @@ Change the look in `html/css/style.css`.
 
 ### Language
 
-Set the ox_lib locale in `server.cfg`:
+Set the language in `server.cfg` (rsg-core falls back to `ox:locale`, then `en`):
 ```cfg
-setr ox:locale en
+setr rsg:locale en
 ```
-To add a language, copy `locales/en.json` to a new file, for example `locales/it.json`, and translate the values. Only `en.json` has the text for the new panels so far.
+To add a language, copy `locales/en.json` to a new file, for example `locales/it.json`, and translate the values. Keep every key and `%s` placeholder.
 
 ## Usage
 
@@ -196,6 +194,17 @@ end)
 ```
 
 **Other client events:** `chat:addTemplate`, `chat:removeSuggestion`, `chat:clear`. Older scripts that send plain chat through `_chat:messageEntered` are posted to the default channel.
+
+## Changelog
+
+### 3.2.0
+- Removed the ox_lib dependency: locales, notifications and admin callbacks now use rsg-core.
+- Rate limit now runs before channel checks, so requests for invalid or locked channels can't be spammed.
+- Admin panel actions are rate limited, and enabling/disabling a channel is logged.
+- Control characters are stripped from messages, PSAs and `SendChannelMessage` text.
+- All 10 locale files now have every key translated.
+- Command/theme refresh is batched when many resources start at once; screen-state check runs every 250 ms instead of every frame.
+- Removed the unused `ooc_prefix` locale key and the example template.
 
 ## License
 

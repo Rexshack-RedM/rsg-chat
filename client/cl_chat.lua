@@ -1,4 +1,4 @@
-lib.locale()
+local RSGCore = exports['rsg-core']:GetCoreObject()
 
 local chatInputActive = false
 local chatInputActivating = false
@@ -9,6 +9,15 @@ local myChannels = {}
 local channelSuggestions = {}
 
 local KVP_SETTINGS = 'rsgchat_settings'
+local CB_TIMEOUT = 5000
+
+local function notify(key, ntype, ...)
+    RSGCore.Functions.Notify({ title = locale('chat_title'), description = locale(key, ...), type = ntype or 'inform', duration = 4000 })
+end
+
+local function adminCall(name, ...)
+    return RSGCore.Functions.AwaitCallback('rsg-chat:server:' .. name, CB_TIMEOUT, ...) or { ok = false }
+end
 
 -- Locale keys the NUI needs (sent once on load)
 local UI_KEYS = {
@@ -162,11 +171,8 @@ end
 
 RegisterNetEvent('rsg-chat:client:openAdmin', function()
     if adminOpen or chatInputActive then return end
-    local channels = lib.callback.await('rsg-chat:server:adminGetChannels', false)
-    if not channels then
-        lib.notify({ title = locale('chat_title'), description = locale('no_permission'), type = 'error' })
-        return
-    end
+    local channels = RSGCore.Functions.AwaitCallback('rsg-chat:server:adminGetChannels', CB_TIMEOUT)
+    if type(channels) ~= 'table' then return notify('no_permission', 'error') end
     adminOpen = true
     SetNuiFocus(true, true)
     SendNUIMessage({
@@ -181,26 +187,26 @@ RegisterNUICallback('adminClose', function(_, cb) closeAdmin() cb('ok') end)
 
 RegisterNUICallback('adminSave', function(data, cb)
     if type(data) ~= 'table' then return cb({ ok = false }) end
-    cb(lib.callback.await('rsg-chat:server:adminSave', false, data.channel, data.originalId) or { ok = false })
+    cb(adminCall('adminSave', data.channel, data.originalId))
 end)
 
 RegisterNUICallback('adminDelete', function(data, cb)
-    cb(lib.callback.await('rsg-chat:server:adminDelete', false, data and data.id) or { ok = false })
+    cb(adminCall('adminDelete', data and data.id))
 end)
 
 RegisterNUICallback('adminToggle', function(data, cb)
-    cb(lib.callback.await('rsg-chat:server:adminToggle', false, data and data.id) or { ok = false })
+    cb(adminCall('adminToggle', data and data.id))
 end)
 
 RegisterNUICallback('adminMove', function(data, cb)
-    cb(lib.callback.await('rsg-chat:server:adminMove', false, data and data.id, data and data.dir) or { ok = false })
+    cb(adminCall('adminMove', data and data.id, data and data.dir))
 end)
 
 ---------------------------------------------------------------------
 -- Commands
 ---------------------------------------------------------------------
 RegisterCommand('chatsettings', function()
-    if chatInputActive or adminOpen then return end
+    if not chatLoaded or chatInputActive or adminOpen then return end
     chatInputActive = true
     SendNUIMessage({ type = 'ON_OPEN', settings = true })
     SetNuiFocus(true, true)
@@ -211,7 +217,7 @@ RegisterCommand('togglechat', function()
 end, false)
 
 RegisterNUICallback('chatToggled', function(data, cb)
-    lib.notify({ title = locale('chat_title'), description = locale(data and data.off and 'chat_turned_off' or 'chat_turned_on'), type = 'inform' })
+    notify(data and data.off and 'chat_turned_off' or 'chat_turned_on')
     cb('ok')
 end)
 
@@ -220,11 +226,11 @@ RegisterCommand('channel', function(_, args)
     for _, ch in ipairs(myChannels) do
         if ch.id == id then
             SendNUIMessage({ type = 'ON_SET_CHANNEL', id = id })
-            lib.notify({ title = locale('chat_title'), description = locale('channel_switched', ch.label), type = 'inform' })
+            notify('channel_switched', 'inform', ch.label)
             return
         end
     end
-    lib.notify({ title = locale('chat_title'), description = locale('channel_unavailable'), type = 'error' })
+    notify('channel_unavailable', 'error')
 end, false)
 
 local function refreshCommands()
@@ -263,17 +269,18 @@ local function refreshThemes()
     SendNUIMessage({ type = 'ON_UPDATE_THEMES', themes = themes })
 end
 
-AddEventHandler('onClientResourceStart', function()
-    Wait(500)
-    refreshCommands()
-    refreshThemes()
-end)
-
-AddEventHandler('onClientResourceStop', function()
-    Wait(500)
-    refreshCommands()
-    refreshThemes()
-end)
+local refreshPending = false
+local function queueRefresh()
+    if not chatLoaded or refreshPending then return end
+    refreshPending = true -- many resources start together: refresh once
+    SetTimeout(500, function()
+        refreshPending = false
+        refreshCommands()
+        refreshThemes()
+    end)
+end
+AddEventHandler('onClientResourceStart', queueRefresh)
+AddEventHandler('onClientResourceStop', queueRefresh)
 
 RegisterNUICallback('loaded', function(_, cb)
     SendNUIMessage({
@@ -293,6 +300,7 @@ end)
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     SetNuiFocus(false, false)
+    SetTextChatEnabled(true)
 end)
 
 ---------------------------------------------------------------------
@@ -301,6 +309,7 @@ end)
 CreateThread(function()
     SetTextChatEnabled(false)
     SetNuiFocus(false, false)
+    local nextScreenCheck = 0
 
     while true do
         Wait(0)
@@ -318,7 +327,8 @@ CreateThread(function()
             chatInputActivating = false
         end
 
-        if chatLoaded then
+        if chatLoaded and GetGameTimer() >= nextScreenCheck then
+            nextScreenCheck = GetGameTimer() + 250
             local shouldBeHidden = IsScreenFadedOut() or IsPauseMenuActive()
             if shouldBeHidden ~= chatHidden then
                 chatHidden = shouldBeHidden

@@ -1,6 +1,5 @@
 {
   "chat_title": "Chat",
-  "ooc_prefix": "OOC",
   "server_prefix": "SERVER",
   "slow_down": "You are sending messages too fast.",
   "unknown_command": "Unknown command: /%s",
@@ -20,7 +19,6 @@
   "help_channel": "Send a message in %s",
   "channel_unavailable": "That channel is not available to you.",
   "channel_switched": "Now chatting in %s.",
-
   "admin_invalid": "Invalid channel data.",
   "admin_bad_id": "Channel id must be 2-24 characters: letters, numbers or _ and start with a letter.",
   "admin_bad_command": "Command may only contain letters, numbers or _ and must start with a letter.",
@@ -28,7 +26,6 @@
   "admin_bad_label": "Channel needs a name.",
   "admin_id_taken": "Another channel already uses that id.",
   "admin_command_taken": "Another channel already uses that command.",
-
   "ui_settings": "Chat Settings",
   "ui_layout": "Layout",
   "ui_font_size": "Font size",

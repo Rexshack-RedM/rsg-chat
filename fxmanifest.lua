@@ -4,7 +4,7 @@ game 'rdr3'
 lua54 'yes'
 
 description 'rsg-chat'
-version '3.1.0'
+version '3.2.0'
 
 ui_page 'html/index.html'
 
@@ -22,7 +22,7 @@ files {
 }
 
 shared_scripts {
-  '@ox_lib/init.lua',
+  '@rsg-core/shared/locale.lua',
   'shared/config.lua',
 }
 
@@ -44,6 +44,5 @@ chat_theme 'gtao' {
 
 dependencies {
   'rsg-core',
-  'ox_lib',
   'oxmysql',
 }

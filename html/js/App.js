@@ -233,6 +233,7 @@ window.APP = {
       this.showInput = true;
       this.showSettings = !!settings;
       this.bump();
+      clearInterval(this.focusTimer);
       this.focusTimer = setInterval(() => {
         if (this.$refs.input && !this.showSettings) this.$refs.input.focus();
         else clearInterval(this.focusTimer);
