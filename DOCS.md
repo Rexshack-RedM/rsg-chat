@@ -97,4 +97,4 @@ The server works out the sender, checks channel access and range, trims messages
 | Chat hidden | Player ran `/togglechat` |
 | Message rejected | Over the channel limit or `MessageCooldown` |
 
-Support: https://buymeacoffee.com/rexshack
+Support the Project : https://rexshack.tebex.store/
